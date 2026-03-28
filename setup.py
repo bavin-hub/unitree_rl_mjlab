@@ -11,6 +11,6 @@ INSTALL_REQUIRES = [
 setup(
     name="unitree_rl_mjlab",
     packages=["src"],
-    version="0.0.1",
+    version="1.1.1",
     install_requires=INSTALL_REQUIRES,
 )
