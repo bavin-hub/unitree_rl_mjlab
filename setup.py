@@ -4,13 +4,13 @@ from setuptools import setup, find_packages
 
 # Minimum dependencies required prior to installation
 INSTALL_REQUIRES = [
-    "mjlab==1.2.0",
+    "mjlab==1.1.1",
 ]
 
 # Installation operation
 setup(
     name="unitree_rl_mjlab",
     packages=["src"],
-    version="1.1.1",
+    version="0.0.1",
     install_requires=INSTALL_REQUIRES,
 )
