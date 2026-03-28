@@ -168,7 +168,15 @@ def run_play(task_id: str, cfg: PlayConfig):
     resolved_viewer = cfg.viewer
 
   if resolved_viewer == "native":
-    NativeMujocoViewer(env, policy).run()
+    split_dir = os.getcwd().split("/")
+    traj_db_dir = os.path.join('/'.join(split_dir[:-2]), 'pretraining_rollouts')
+    if os.path.isdir(traj_db_dir):
+      print('Rollouts db exists')
+    else:
+      os.mkdir(traj_db_dir)
+      print("New directory created to save rollouts")
+    
+    NativeMujocoViewer(env, policy).run(db_dir=traj_db_dir)
   elif resolved_viewer == "viser":
     ViserPlayViewer(env, policy).run()
   else:
