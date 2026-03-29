@@ -176,7 +176,7 @@ def run_play(task_id: str, cfg: PlayConfig):
       os.mkdir(traj_db_dir)
       print("New directory created to save rollouts")
     
-    NativeMujocoViewer(env, policy).run(db_dir=traj_db_dir)
+    NativeMujocoViewer(env, policy).run()
   elif resolved_viewer == "viser":
     ViserPlayViewer(env, policy).run()
   else:
