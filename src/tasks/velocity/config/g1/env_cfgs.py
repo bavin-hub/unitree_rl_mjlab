@@ -1,5 +1,7 @@
 """Unitree G1 velocity environment configurations."""
 
+import dataclasses
+
 from src.assets.robots import (
   G1_ACTION_SCALE,
   get_g1_robot_cfg,
@@ -12,6 +14,7 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg, RayCastSensorCfg
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+from mjlab.terrains.config import ALL_TERRAINS_CFG
 from src.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 
 
@@ -194,6 +197,63 @@ def unitree_g1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (-0.5, 1.0)
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
+    twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
+
+  return cfg
+
+
+def unitree_g1_flat_with_terrain_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """G1 flat-obs env on discrete-obstacle terrain for vision data collection.
+
+  Uses the same observation space as Unitree-G1-Flat (no height_scan) so the
+  flat-terrain checkpoint loads without modification.
+
+  Terrain: HfDiscreteObstacles — random cylindrical/box obstacles scattered
+  on a flat heightfield base. Parameters match the viser visualizer preset.
+  """
+  from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
+  from mjlab.terrains.heightfield_terrains import HfDiscreteObstaclesTerrainCfg
+
+  cfg = unitree_g1_flat_env_cfg(play=play)
+
+  cfg.sim.mujoco.ccd_iterations = 50   # boxes don't need high CCD
+  cfg.sim.contact_sensor_maxmatch = 500
+  cfg.sim.nconmax = 256
+
+  obstacle_terrain = HfDiscreteObstaclesTerrainCfg(
+    proportion=1.0,
+    obstacle_width_range=(0.3, 0.6),
+    obstacle_height_range=(0.08, 0.25),
+    num_obstacles=300,       # dense — ~1 obstacle per 5m²
+    platform_width=1.0,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    base_thickness_ratio=1.0,
+    border_width=0.25,
+    square_obstacles=True,
+    origin_z_offset=0.0,
+  )
+
+  assert cfg.scene.terrain is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    seed=42,
+    size=(80.0, 80.0),   # 80m x 80m — large open exploration space
+    num_rows=1,
+    num_cols=1,
+    curriculum=False,
+    border_width=8.0,
+    add_lights=True,
+    sub_terrains={"discrete_obstacles": obstacle_terrain},
+  )
+
+  # Force robot to always walk forward during data collection.
+  if play:
+    from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x = (0.5, 1.0)
+    twist_cmd.ranges.lin_vel_y = (-0.3, 0.3)
     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
 
   return cfg

@@ -1,14 +1,19 @@
 """Unitree G1 flat tracking environment configurations."""
 
+import dataclasses
+
 from mjlab.asset_zoo.robots import (
   G1_ACTION_SCALE,
   get_g1_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
+from mjlab.terrains.config import ALL_TERRAINS_CFG
 
 from src.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 
@@ -97,5 +102,56 @@ def unitree_g1_flat_tracking_env_cfg(
     motion_cmd.velocity_range = {}
 
     motion_cmd.sampling_mode = "start"
+
+  return cfg
+
+
+def unitree_g1_tracking_with_terrain_env_cfg(
+  has_state_estimation: bool = True,
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Tracking env on discrete-obstacle terrain for vision data collection.
+
+  Same observation space as the flat tracking task so existing checkpoints
+  load without modification.  Uses the same 80m×80m box-obstacle scene as
+  the velocity terrain task for consistent data collection across policies.
+  """
+  from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
+  from mjlab.terrains.heightfield_terrains import HfDiscreteObstaclesTerrainCfg
+
+  cfg = unitree_g1_flat_tracking_env_cfg(
+    has_state_estimation=has_state_estimation, play=play
+  )
+
+  cfg.sim.mujoco.ccd_iterations = 50
+  cfg.sim.contact_sensor_maxmatch = 500
+  cfg.sim.nconmax = 256
+
+  obstacle_terrain = HfDiscreteObstaclesTerrainCfg(
+    proportion=1.0,
+    obstacle_width_range=(0.3, 0.6),
+    obstacle_height_range=(0.08, 0.25),
+    num_obstacles=500,
+    platform_width=1.0,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    base_thickness_ratio=1.0,
+    border_width=0.25,
+    square_obstacles=True,
+    origin_z_offset=0.0,
+  )
+
+  assert cfg.scene.terrain is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    seed=42,
+    size=(80.0, 80.0),
+    num_rows=1,
+    num_cols=1,
+    curriculum=False,
+    border_width=8.0,
+    add_lights=True,
+    sub_terrains={"discrete_obstacles": obstacle_terrain},
+  )
 
   return cfg
